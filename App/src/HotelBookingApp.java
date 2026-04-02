@@ -1,6 +1,6 @@
 import java.util.*;
 
-// Room class (UC6)
+// Room class for UC6-style display
 class Room {
     String type;
     int beds;
@@ -46,17 +46,9 @@ class Reservation {
         this.roomType = roomType;
     }
 
-    public int getReservationId() {
-        return reservationId;
-    }
-
-    public String getGuestName() {
-        return guestName;
-    }
-
-    public String getRoomType() {
-        return roomType;
-    }
+    public int getReservationId() { return reservationId; }
+    public String getGuestName() { return guestName; }
+    public String getRoomType() { return roomType; }
 
     @Override
     public String toString() {
@@ -66,92 +58,92 @@ class Reservation {
     }
 }
 
-// Queue Manager
-class BookingRequestQueue {
-    private Queue<Reservation> queue;
+// Booking Service
+class BookingService {
+    private Queue<Reservation> requestQueue;
+    private List<Room> rooms;
+    private Map<String, Set<String>> roomAllocations;
+    private int roomCounter = 1;
 
-    public BookingRequestQueue() {
-        queue = new LinkedList<>();
+    public BookingService(Queue<Reservation> requestQueue, List<Room> rooms) {
+        this.requestQueue = requestQueue;
+        this.rooms = rooms;
+        this.roomAllocations = new HashMap<>();
     }
 
-    public void addRequest(Reservation reservation) {
-        queue.add(reservation);
-        System.out.println("Request added: " + reservation);
+    private String generateRoomId(String roomType) {
+        return roomType.substring(0, 2).toUpperCase() + roomCounter++;
     }
 
-    public void showQueue() {
-        if (queue.isEmpty()) {
-            System.out.println("No booking requests in queue.");
+    public void processNext() {
+        if (requestQueue.isEmpty()) {
+            System.out.println("No booking requests.");
             return;
         }
-        System.out.println("\nBooking Requests in Queue (FIFO Order):");
-        for (Reservation r : queue) {
-            System.out.println(r);
-        }
-    }
 
-    public Reservation processNextRequest(List<Room> rooms) {
-        if (queue.isEmpty()) {
-            System.out.println("No requests to process.");
-            return null;
-        }
+        Reservation r = requestQueue.poll();
+        System.out.println("\nProcessing: " + r);
 
-        Reservation r = queue.poll();
-        // Try to book the room
         for (Room room : rooms) {
             if (room.type.equalsIgnoreCase(r.getRoomType())) {
                 if (room.bookRoom()) {
-                    System.out.println("Processing request: " + r + " ✅ Booked successfully");
+                    String roomId = generateRoomId(r.getRoomType());
+                    roomAllocations.computeIfAbsent(r.getRoomType(), k -> new HashSet<>()).add(roomId);
+                    System.out.println(" Booking Confirmed!");
+                    System.out.println(" Guest: " + r.getGuestName());
+                    System.out.println(" Room Type: " + r.getRoomType());
+                    System.out.println(" Allocated Room ID: " + roomId);
                 } else {
-                    System.out.println("Processing request: " + r + " ❌ No rooms available");
+                    System.out.println(" No rooms available for type: " + r.getRoomType());
                 }
-                return r;
+                return;
             }
         }
 
-        System.out.println("Processing request: " + r + " ❌ Room type not found");
-        return r;
+        System.out.println(" Room type not found for: " + r.getRoomType());
+    }
+
+    public void showAllocations() {
+        System.out.println("\nRoom Allocations:");
+        for (String type : roomAllocations.keySet()) {
+            System.out.println(type + " -> " + roomAllocations.get(type));
+        }
     }
 }
 
-// Main Application
+// Main App
 public class HotelBookingApp {
     public static void main(String[] args) {
 
-        // UC6 – Inventory
+        // Step 1: UC6-style room inventory
         List<Room> rooms = new ArrayList<>();
-        rooms.add(new Room("Single",1,250,1500.0,5));
-        rooms.add(new Room("Double",2,400,2500.0,3));
-        rooms.add(new Room("Suite",3,750,5000.0,2));
+        rooms.add(new Room("Single", 1, 250, 1500.0, 5));
+        rooms.add(new Room("Double", 2, 400, 2500.0, 3));
+        rooms.add(new Room("Suite", 3, 750, 5000.0, 2));
 
         System.out.println("Hotel Room Inventory Status\n");
-        for (Room room : rooms) {
-            room.display();
+        for (Room room : rooms) room.display();
+
+        // Step 2: Booking Queue
+        Queue<Reservation> requestQueue = new LinkedList<>();
+        requestQueue.add(new Reservation(1, "Alice", "Single"));
+        requestQueue.add(new Reservation(2, "Bob", "Double"));
+        requestQueue.add(new Reservation(3, "Charlie", "Suite"));
+        requestQueue.add(new Reservation(4, "David", "Suite")); // Should fail if not enough suites
+
+        // Step 3: Booking Service
+        BookingService bookingService = new BookingService(requestQueue, rooms);
+
+        // Step 4: Process all requests
+        while (!requestQueue.isEmpty()) {
+            bookingService.processNext();
         }
 
-        // Booking Queue
-        BookingRequestQueue requestQueue = new BookingRequestQueue();
+        // Step 5: Show final allocations
+        bookingService.showAllocations();
 
-        // Adding booking requests
-        requestQueue.addRequest(new Reservation(1, "Alice", "Single"));
-        requestQueue.addRequest(new Reservation(2, "Bob", "Double"));
-        requestQueue.addRequest(new Reservation(3, "Charlie", "Suite"));
-
-        // Show queue
-        requestQueue.showQueue();
-
-        // Process requests
-        System.out.println("\n--- Processing Requests ---");
-        requestQueue.processNextRequest(rooms);
-        requestQueue.processNextRequest(rooms);
-
-        // Remaining queue
-        requestQueue.showQueue();
-
-        // Updated inventory after booking
+        // Step 6: Show updated inventory
         System.out.println("\nUpdated Hotel Room Inventory Status:\n");
-        for (Room room : rooms) {
-            room.display();
-        }
+        for (Room room : rooms) room.display();
     }
 }
