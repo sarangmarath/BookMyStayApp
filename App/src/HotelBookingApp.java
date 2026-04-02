@@ -1,103 +1,117 @@
+import java.io.*;
 import java.util.*;
 
-// ---------------------- Add-On Service Class ----------------------
-class AddOnService {
-    private String serviceName;
-    private double cost;
+// ---------------------- Serializable Inventory Class ----------------------
+class RoomInventory implements Serializable {
+    private static final long serialVersionUID = 1L;
 
-    public AddOnService(String serviceName, double cost) {
-        this.serviceName = serviceName;
-        this.cost = cost;
+    private Map<String, Integer> roomAvailability;
+
+    public RoomInventory() {
+        roomAvailability = new HashMap<>();
+        roomAvailability.put("Single Room", 5);
+        roomAvailability.put("Double Room", 3);
     }
 
-    public String getServiceName() {
-        return serviceName;
+    public Map<String, Integer> getRoomAvailability() {
+        return roomAvailability;
     }
 
-    public double getCost() {
-        return cost;
+    public void updateAvailability(String roomType, int count) {
+        roomAvailability.put(roomType, count);
     }
 
-    @Override
-    public String toString() {
-        return serviceName + " (₹" + cost + ")";
+    public void displayInventory() {
+        System.out.println("\nInventory:");
+        for (Map.Entry<String, Integer> entry : roomAvailability.entrySet()) {
+            System.out.println(entry.getKey() + ": " + entry.getValue());
+        }
     }
 }
 
-// ---------------------- Add-On Service Manager ----------------------
-class AddOnServiceManager {
+// ---------------------- Serializable Booking Data ----------------------
+class BookingData implements Serializable {
+    private static final long serialVersionUID = 1L;
 
-    // Map: reservationId -> list of services
-    private Map<Integer, List<AddOnService>> serviceMap;
+    Map<String, String> reservations;
 
-    public AddOnServiceManager() {
-        serviceMap = new HashMap<>();
+    public BookingData() {
+        reservations = new HashMap<>();
     }
+}
 
-    // Add a service to a reservation
-    public void addService(int reservationId, AddOnService service) {
-        serviceMap.computeIfAbsent(reservationId, k -> new ArrayList<>()).add(service);
-        System.out.println("Added service to Reservation " + reservationId + ": " + service);
-    }
+// ---------------------- Persistence Service ----------------------
+class PersistenceService {
 
-    // Show all services for a reservation
-    public void showServices(int reservationId) {
-        List<AddOnService> services = serviceMap.get(reservationId);
+    private static final String FILE_NAME = "hotel_data.ser";
 
-        if (services == null || services.isEmpty()) {
-            System.out.println("No services for Reservation " + reservationId);
-            return;
-        }
-
-        System.out.println("\nServices for Reservation " + reservationId + ":");
-        for (AddOnService s : services) {
-            System.out.println("- " + s);
+    // Save system state
+    public static void save(RoomInventory inventory, BookingData data) {
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(FILE_NAME))) {
+            out.writeObject(inventory);
+            out.writeObject(data);
+            System.out.println("\nSystem state saved successfully.");
+        } catch (IOException e) {
+            System.out.println("Error saving data: " + e.getMessage());
         }
     }
 
-    // Calculate total cost for a reservation
-    public double calculateTotalCost(int reservationId) {
-        List<AddOnService> services = serviceMap.get(reservationId);
-        if (services == null) return 0;
-
-        double total = 0;
-        for (AddOnService s : services) {
-            total += s.getCost();
+    // Load system state
+    public static Object[] load() {
+        try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(FILE_NAME))) {
+            RoomInventory inventory = (RoomInventory) in.readObject();
+            BookingData data = (BookingData) in.readObject();
+            System.out.println("\nSystem state restored successfully.");
+            return new Object[]{inventory, data};
+        } catch (FileNotFoundException e) {
+            System.out.println("No saved data found. Starting fresh.");
+        } catch (Exception e) {
+            System.out.println("Error loading data. Starting with safe state.");
         }
-        return total;
+        return null;
     }
 }
 
 // ---------------------- Main Class ----------------------
 public class HotelBookingApp {
+
     public static void main(String[] args) {
 
-        System.out.println("=== Hotel Add-On Services Demo ===\n");
+        RoomInventory inventory;
+        BookingData bookingData;
 
-        AddOnServiceManager manager = new AddOnServiceManager();
+        // Step 1: Load previous state
+        Object[] loaded = PersistenceService.load();
 
-        // Sample reservations (IDs from previous booking system)
-        int res1 = 1;
-        int res2 = 2;
+        if (loaded != null) {
+            inventory = (RoomInventory) loaded[0];
+            bookingData = (BookingData) loaded[1];
+        } else {
+            inventory = new RoomInventory();
+            bookingData = new BookingData();
+        }
 
-        // Create available services
-        AddOnService breakfast = new AddOnService("Breakfast", 500);
-        AddOnService wifi = new AddOnService("WiFi", 200);
-        AddOnService spa = new AddOnService("Spa", 1500);
+        // Step 2: Simulate booking
+        System.out.println("\n--- Booking Simulation ---");
+        String bookingId = "R101";
+        String roomType = "Single Room";
 
-        // Add services to reservations
-        manager.addService(res1, breakfast);
-        manager.addService(res1, wifi);
-        manager.addService(res2, spa);
+        if (inventory.getRoomAvailability().get(roomType) > 0) {
+            bookingData.reservations.put(bookingId, roomType);
 
-        // Display services for each reservation
-        manager.showServices(res1);
-        manager.showServices(res2);
+            int current = inventory.getRoomAvailability().get(roomType);
+            inventory.updateAvailability(roomType, current - 1);
 
-        // Display total cost
-        System.out.println("\nTotal Add-On Cost for Reservation " + res1 + ": ₹" +
-                manager.calculateTotalCost(res1));
-        System.out.println("Total Add-On Cost for Reservation " + res2 + ": ₹" +
-                manager.calculateTotalCost(res2));
+            System.out.println("Booking successful: " + bookingId + " -> " + roomType);
+        } else {
+            System.out.println("Booking failed: No " + roomType + " available.");
+        }
+
+        // Step 3: Display current state
+        inventory.displayInventory();
+        System.out.println("Bookings: " + bookingData.reservations);
+
+        // Step 4: Save state before shutdown
+        PersistenceService.save(inventory, bookingData);
     }
 }
