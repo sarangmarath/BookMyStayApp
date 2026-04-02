@@ -1,6 +1,6 @@
 import java.util.*;
 
-// Room class for UC6-style display
+// Room class (UC6-style)
 class Room {
     String type;
     int beds;
@@ -58,7 +58,7 @@ class Reservation {
     }
 }
 
-// Booking Service
+// Booking Service (queue + room allocation)
 class BookingService {
     private Queue<Reservation> requestQueue;
     private List<Room> rooms;
@@ -111,11 +111,62 @@ class BookingService {
     }
 }
 
-// Main App
+// Add-On Service class
+class AddOnService {
+    private String serviceName;
+    private double cost;
+
+    public AddOnService(String serviceName, double cost) {
+        this.serviceName = serviceName;
+        this.cost = cost;
+    }
+
+    public String getServiceName() { return serviceName; }
+    public double getCost() { return cost; }
+
+    @Override
+    public String toString() {
+        return serviceName + " (₹" + cost + ")";
+    }
+}
+
+// Add-On Service Manager
+class AddOnServiceManager {
+    private Map<Integer, List<AddOnService>> serviceMap;
+
+    public AddOnServiceManager() {
+        serviceMap = new HashMap<>();
+    }
+
+    public void addService(int reservationId, AddOnService service) {
+        serviceMap.computeIfAbsent(reservationId, k -> new ArrayList<>()).add(service);
+        System.out.println("Added service to Reservation " + reservationId + ": " + service);
+    }
+
+    public void showServices(int reservationId) {
+        List<AddOnService> services = serviceMap.get(reservationId);
+        if (services == null || services.isEmpty()) {
+            System.out.println("No services for Reservation " + reservationId);
+            return;
+        }
+        System.out.println("\nServices for Reservation " + reservationId + ":");
+        for (AddOnService s : services) System.out.println("- " + s);
+    }
+
+    public double calculateTotalCost(int reservationId) {
+        List<AddOnService> services = serviceMap.get(reservationId);
+        if (services == null) return 0;
+        double total = 0;
+        for (AddOnService s : services) total += s.getCost();
+        return total;
+    }
+}
+
+// Main Application
 public class HotelBookingApp {
     public static void main(String[] args) {
 
-        // Step 1: UC6-style room inventory
+        // Step 1: Rooms
         List<Room> rooms = new ArrayList<>();
         rooms.add(new Room("Single", 1, 250, 1500.0, 5));
         rooms.add(new Room("Double", 2, 400, 2500.0, 3));
@@ -124,25 +175,41 @@ public class HotelBookingApp {
         System.out.println("Hotel Room Inventory Status\n");
         for (Room room : rooms) room.display();
 
-        // Step 2: Booking Queue
+        // Step 2: Booking queue
         Queue<Reservation> requestQueue = new LinkedList<>();
         requestQueue.add(new Reservation(1, "Alice", "Single"));
         requestQueue.add(new Reservation(2, "Bob", "Double"));
         requestQueue.add(new Reservation(3, "Charlie", "Suite"));
-        requestQueue.add(new Reservation(4, "David", "Suite")); // Should fail if not enough suites
 
-        // Step 3: Booking Service
         BookingService bookingService = new BookingService(requestQueue, rooms);
 
-        // Step 4: Process all requests
+        // Step 3: Process bookings
         while (!requestQueue.isEmpty()) {
             bookingService.processNext();
         }
 
-        // Step 5: Show final allocations
         bookingService.showAllocations();
 
-        // Step 6: Show updated inventory
+        // Step 4: Add-On Services
+        AddOnServiceManager addonManager = new AddOnServiceManager();
+
+        AddOnService breakfast = new AddOnService("Breakfast", 500);
+        AddOnService wifi = new AddOnService("WiFi", 200);
+        AddOnService spa = new AddOnService("Spa", 1500);
+
+        addonManager.addService(1, breakfast);
+        addonManager.addService(1, wifi);
+        addonManager.addService(2, spa);
+
+        addonManager.showServices(1);
+        addonManager.showServices(2);
+
+        System.out.println("\nTotal Add-On Cost for Reservation 1: ₹" +
+                addonManager.calculateTotalCost(1));
+        System.out.println("Total Add-On Cost for Reservation 2: ₹" +
+                addonManager.calculateTotalCost(2));
+
+        // Step 5: Updated inventory
         System.out.println("\nUpdated Hotel Room Inventory Status:\n");
         for (Room room : rooms) room.display();
     }
