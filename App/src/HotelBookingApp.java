@@ -1,178 +1,95 @@
 import java.util.*;
 
-class Room {
-    String type;
-    int beds;
-    int size;
-    double price;
-    int available;
-
-    public Room(String type, int beds, int size, double price, int available) {
-        this.type = type;
-        this.beds = beds;
-        this.size = size;
-        this.price = price;
-        this.available = available;
-    }
-
-    public boolean bookRoom() {
-        if (available > 0) {
-            available--;
-            return true;
-        }
-        return false;
-    }
-
-    public void display() {
-        System.out.println(type + " Room:");
-        System.out.println("Beds: " + beds);
-        System.out.println("Size: " + size + " sqft");
-        System.out.println("Price per night: " + price);
-        System.out.println("Available Rooms: " + available + "\n");
-    }
-}
-
-// --- Custom Exception ---
-class InvalidBookingException extends Exception {
-    public InvalidBookingException(String message) { super(message); }
-}
-
 // --- Reservation ---
 class Reservation {
+    int reservationId;
     String guestName;
     String roomType;
 
-    public Reservation(String guestName, String roomType) {
+    public Reservation(int reservationId, String guestName, String roomType) {
+        this.reservationId = reservationId;
         this.guestName = guestName;
         this.roomType = roomType;
     }
 
     @Override
     public String toString() {
-        return "Guest: " + guestName + ", Room Type: " + roomType;
+        return "Reservation ID: " + reservationId + ", Guest: " + guestName + ", Room: " + roomType;
     }
 }
 
-// --- Booking Validator ---
-class ReservationValidator {
-    public void validate(String guestName, String roomType, List<Room> rooms)
-            throws InvalidBookingException {
+// --- Add-On Service ---
+class AddOnService {
+    private String serviceName;
+    private double cost;
 
-        if (guestName == null || guestName.trim().isEmpty()) {
-            throw new InvalidBookingException("Guest name cannot be empty");
+    public AddOnService(String serviceName, double cost) {
+        this.serviceName = serviceName;
+        this.cost = cost;
+    }
+
+    public double getCost() { return cost; }
+
+    @Override
+    public String toString() { return serviceName + " (₹" + cost + ")"; }
+}
+
+// --- Add-On Service Manager ---
+class AddOnServiceManager {
+    private Map<Integer, List<AddOnService>> serviceMap = new HashMap<>();
+
+    public void addService(int reservationId, AddOnService service) {
+        serviceMap.computeIfAbsent(reservationId, k -> new ArrayList<>()).add(service);
+        System.out.println("Added " + service + " to Reservation " + reservationId);
+    }
+
+    public void showServices(int reservationId) {
+        List<AddOnService> list = serviceMap.get(reservationId);
+        if (list == null || list.isEmpty()) {
+            System.out.println("No services for Reservation " + reservationId);
+            return;
         }
+        System.out.println("Services for Reservation " + reservationId + ": " + list);
+    }
 
-        boolean validType = false;
-        for (Room r : rooms) {
-            if (r.type.equalsIgnoreCase(roomType)) {
-                validType = true;
-                if (r.available == 0) {
-                    throw new InvalidBookingException("Room not available");
-                }
-            }
-        }
-
-        if (!validType) throw new InvalidBookingException("Invalid room type");
+    public double calculateTotalCost(int reservationId) {
+        List<AddOnService> list = serviceMap.get(reservationId);
+        if (list == null) return 0;
+        return list.stream().mapToDouble(AddOnService::getCost).sum();
     }
 }
 
-// --- Booking Queue (FIFO) ---
-class BookingRequestQueue {
-    private Queue<Reservation> queue = new LinkedList<>();
-
-    public void addRequest(Reservation r) {
-        queue.add(r);
-        System.out.println("Booking request added for " + r.guestName);
-    }
-
-    public Reservation nextRequest() { return queue.poll(); }
-    public boolean isEmpty() { return queue.isEmpty(); }
-}
-
-// --- Booking History ---
-class BookingHistory {
-    private List<Reservation> history = new ArrayList<>();
-    public void addReservation(Reservation r) { history.add(r); }
-    public List<Reservation> getHistory() { return history; }
-}
-
-// --- Booking Service ---
-class BookingService {
-    private BookingRequestQueue queue;
-    private List<Room> rooms;
-    private BookingHistory history;
-
-    public BookingService(BookingRequestQueue queue, List<Room> rooms, BookingHistory history) {
-        this.queue = queue;
-        this.rooms = rooms;
-        this.history = history;
-    }
-
-    public void processNext() {
-        if (queue.isEmpty()) return;
-        Reservation r = queue.nextRequest();
-        for (Room room : rooms) {
-            if (room.type.equalsIgnoreCase(r.roomType)) {
-                if (room.bookRoom()) {
-                    System.out.println("Booking Confirmed for " + r.guestName);
-                    history.addReservation(r);
-                } else {
-                    System.out.println("No rooms available for " + r.roomType);
-                }
-                return;
-            }
-        }
-    }
-}
-
-// --- Report Service ---
-class BookingReportService {
-    public void generateReport(List<Reservation> history) {
-        System.out.println("\nBooking History Report:");
-        for (Reservation r : history) System.out.println(r);
-    }
-}
-
-// --- Main Class ---
+// --- Main ---
 public class HotelBookingApp {
     public static void main(String[] args) {
 
-        // Rooms
-        List<Room> rooms = new ArrayList<>();
-        rooms.add(new Room("Single", 1, 250, 1500.0, 5));
-        rooms.add(new Room("Double", 2, 400, 2500.0, 3));
-        rooms.add(new Room("Suite", 3, 750, 5000.0, 2));
+        AddOnServiceManager manager = new AddOnServiceManager();
 
-        System.out.println("Hotel Room Inventory Status:");
-        for (Room r : rooms) r.display();
+        // Simulated confirmed reservations
+        Reservation r1 = new Reservation(1, "Alice", "Deluxe");
+        Reservation r2 = new Reservation(2, "Bob", "Standard");
 
-        // Queue, history, validator
-        BookingRequestQueue queue = new BookingRequestQueue();
-        BookingHistory history = new BookingHistory();
-        ReservationValidator validator = new ReservationValidator();
+        System.out.println("Confirmed Reservations:");
+        System.out.println(r1);
+        System.out.println(r2);
 
-        Scanner sc = new Scanner(System.in);
+        // Add-On Services
+        AddOnService breakfast = new AddOnService("Breakfast", 500);
+        AddOnService wifi = new AddOnService("WiFi", 200);
+        AddOnService spa = new AddOnService("Spa", 1500);
 
-        // Sample bookings
-        String[] names = {"Abhi", "Subha", "Vanmathi", "David"};
-        String[] types = {"Single", "Double", "Suite", "Suite"};
+        // Assign services
+        manager.addService(r1.reservationId, breakfast);
+        manager.addService(r1.reservationId, wifi);
+        manager.addService(r2.reservationId, spa);
 
-        for (int i = 0; i < names.length; i++) {
-            try {
-                validator.validate(names[i], types[i], rooms);
-                Reservation r = new Reservation(names[i], types[i]);
-                queue.addRequest(r);
-            } catch (InvalidBookingException e) {
-                System.out.println("Booking failed for " + names[i] + ": " + e.getMessage());
-            }
-        }
+        // Show services and total
+        manager.showServices(r1.reservationId);
+        System.out.println("Total Add-On Cost for Reservation " + r1.reservationId + ": ₹" +
+                manager.calculateTotalCost(r1.reservationId));
 
-        // Process queue
-        BookingService bookingService = new BookingService(queue, rooms, history);
-        while (!queue.isEmpty()) bookingService.processNext();
-
-        // Show final report
-        BookingReportService reportService = new BookingReportService();
-        reportService.generateReport(history.getHistory());
+        manager.showServices(r2.reservationId);
+        System.out.println("Total Add-On Cost for Reservation " + r2.reservationId + ": ₹" +
+                manager.calculateTotalCost(r2.reservationId));
     }
 }
